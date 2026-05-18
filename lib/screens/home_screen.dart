@@ -1,5 +1,9 @@
 import 'package:flutter/material.dart';
-import 'package:my_app/services/auth_service.dart';
+import 'package:my_app/controllers/home_controller.dart';
+import 'package:my_app/widgets/home_action_button.dart';
+import 'package:my_app/widgets/home_header.dart';
+import 'package:my_app/widgets/home_info_panel.dart';
+import 'package:my_app/widgets/home_profile_header.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -9,228 +13,187 @@ class HomeScreen extends StatefulWidget {
 }
 
 class _HomeScreenState extends State<HomeScreen> {
-  final AuthService _authService = AuthService();
-  Map<String, dynamic>? userData;
-  bool isLoading = true;
+  static const Color _primaryColor = Color(0xFF1A5C6B);
+  static const Color _dangerColor = Color(0xFFE84C4F);
+
+  final HomeController homeController = HomeController();
 
   @override
   void initState() {
     super.initState();
+    homeController.addListener(_refresh);
     _loadUserData();
   }
 
-  Future<void> _loadUserData() async {
-    try {
-      final currentUser = _authService.getCurrentUser();
-      if (currentUser != null) {
-        final data = await _authService.getUserData(currentUser.uid);
-        if (!mounted) return;
+  @override
+  void dispose() {
+    homeController.removeListener(_refresh);
+    homeController.dispose();
+    super.dispose();
+  }
 
-        setState(() {
-          userData = data;
-          isLoading = false;
-        });
-        return;
-      }
-
-      if (!mounted) return;
-
-      setState(() {
-        isLoading = false;
-      });
-    } catch (e) {
-      if (!mounted) return;
-
-      setState(() {
-        isLoading = false;
-      });
+  void _refresh() {
+    if (mounted) {
+      setState(() {});
     }
   }
 
-  Future<void> _logout() async {
-    final navigator = Navigator.of(context);
-    final messenger = ScaffoldMessenger.of(context);
+  Future<void> _loadUserData() async {
+    final error = await homeController.loadUserData();
+    if (!mounted || error == null) return;
 
-    showDialog(
+    _showMessage(error);
+  }
+
+  Future<void> _logout() async {
+    final error = await homeController.logout();
+    if (!mounted) return;
+
+    if (error == null) {
+      Navigator.of(context).pushReplacementNamed('/auth');
+      return;
+    }
+
+    _showMessage(error);
+  }
+
+  Future<void> _confirmDeleteAccount() async {
+    if (homeController.isBusy) return;
+
+    final shouldDelete = await showDialog<bool>(
       context: context,
       builder: (dialogContext) => AlertDialog(
-        title: const Text('Déconnexion'),
-        content: const Text('Êtes-vous sûr de vouloir vous déconnecter ?'),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(22)),
+        title: const Text('Supprimer le compte'),
+        content: const Text(
+          'Cette action supprimera définitivement votre compte Firebase. Elle ne peut pas être annulée.',
+        ),
         actions: [
           TextButton(
-            onPressed: () => Navigator.pop(dialogContext),
+            onPressed: () => Navigator.pop(dialogContext, false),
             child: const Text('Annuler'),
           ),
-          TextButton(
-            onPressed: () async {
-              Navigator.pop(dialogContext);
-
-              try {
-                await _authService.logout();
-
-                if (!mounted) return;
-
-                navigator.pushReplacementNamed('/login');
-              } catch (e) {
-                if (!mounted) return;
-
-                messenger.showSnackBar(SnackBar(content: Text('Erreur: $e')));
-              }
-            },
-            child: const Text(
-              'Déconnexion',
-              style: TextStyle(color: Colors.red),
-            ),
+          FilledButton(
+            onPressed: () => Navigator.pop(dialogContext, true),
+            style: FilledButton.styleFrom(backgroundColor: _dangerColor),
+            child: const Text('Supprimer'),
           ),
         ],
       ),
     );
+
+    if (shouldDelete == true) {
+      await _deleteAccount();
+    }
+  }
+
+  Future<void> _deleteAccount() async {
+    final error = await homeController.deleteAccount();
+    if (!mounted) return;
+
+    if (error == null) {
+      Navigator.of(context).pushReplacementNamed('/auth');
+      _showMessage('Compte supprimé avec succès.');
+      return;
+    }
+
+    _showMessage(error);
+  }
+
+  void _showMessage(String message) {
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text(message)));
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Accueil'),
-        backgroundColor: const Color.fromARGB(255, 135, 47, 194),
-        elevation: 0,
-        actions: [
-          // Bouton déconnexion avec icône
-          IconButton(
-            icon: const Icon(Icons.logout),
-            onPressed: _logout,
-            tooltip: 'Déconnexion',
+      body: Stack(
+        children: [
+          Positioned.fill(
+            child: Image.asset(
+              'assets/images/background.png',
+              fit: BoxFit.cover,
+            ),
           ),
-        ],
-      ),
-      body: isLoading
-          ? const Center(child: CircularProgressIndicator())
-          : Padding(
-              padding: const EdgeInsets.all(24),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  // En-tête de bienvenue
-                  const Text(
-                    'Bienvenue 👋',
-                    style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold),
-                  ),
-                  const SizedBox(height: 20),
-
-                  // Afficher les informations de l'utilisateur
-                  if (userData != null) ...[
-                    Card(
-                      elevation: 2,
-                      child: Padding(
-                        padding: const EdgeInsets.all(16),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Row(
+          SafeArea(
+            child: homeController.isLoading
+                ? const Center(
+                    child: CircularProgressIndicator(color: Colors.white),
+                  )
+                : Column(
+                    children: [
+                      HomeHeader(
+                        isSigningOut: homeController.isSigningOut,
+                        onLogout: _logout,
+                      ),
+                      Expanded(
+                        child: Container(
+                          width: double.infinity,
+                          padding: const EdgeInsets.fromLTRB(24, 26, 24, 24),
+                          decoration: const BoxDecoration(
+                            color: Colors.white,
+                            borderRadius: BorderRadius.only(
+                              topLeft: Radius.circular(32),
+                              topRight: Radius.circular(32),
+                            ),
+                          ),
+                          child: SingleChildScrollView(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.stretch,
                               children: [
-                                const CircleAvatar(
-                                  radius: 30,
-                                  backgroundColor: Color.fromARGB(
-                                    255,
-                                    135,
-                                    47,
-                                    194,
-                                  ),
-                                  child: Icon(
-                                    Icons.person,
-                                    size: 30,
-                                    color: Colors.white,
-                                  ),
+                                HomeProfileHeader(
+                                  name: homeController.displayName,
+                                  email: homeController.email,
+                                  initials: homeController.initials,
                                 ),
-                                const SizedBox(width: 16),
-                                Expanded(
-                                  child: Column(
-                                    crossAxisAlignment:
-                                        CrossAxisAlignment.start,
-                                    children: [
-                                      Text(
-                                        '${userData!['firstName']} ${userData!['lastName']}',
-                                        style: const TextStyle(
-                                          fontSize: 20,
-                                          fontWeight: FontWeight.bold,
-                                        ),
-                                      ),
-                                      const SizedBox(height: 4),
-                                      Text(
-                                        userData!['email'],
-                                        style: TextStyle(
-                                          fontSize: 14,
-                                          color: Colors.grey[600],
-                                        ),
-                                      ),
-                                    ],
-                                  ),
+                                const SizedBox(height: 24),
+                                const HomeInfoPanel(
+                                  icon: Icons.verified_user_outlined,
+                                  title: 'Connexion active',
+                                  subtitle:
+                                      'Vous êtes connecté à votre compte Firebase.',
+                                ),
+                                const SizedBox(height: 14),
+                                const HomeInfoPanel(
+                                  icon: Icons.lock_outline_rounded,
+                                  title: 'Compte sécurisé',
+                                  subtitle:
+                                      'Vous pouvez quitter la session ou supprimer le compte.',
+                                ),
+                                const SizedBox(height: 28),
+                                HomeActionButton(
+                                  label: homeController.isSigningOut
+                                      ? 'Déconnexion...'
+                                      : 'Se déconnecter',
+                                  icon: Icons.logout_rounded,
+                                  backgroundColor: _primaryColor,
+                                  foregroundColor: Colors.white,
+                                  isLoading: homeController.isSigningOut,
+                                  onPressed: _logout,
+                                ),
+                                const SizedBox(height: 12),
+                                HomeActionButton(
+                                  label: homeController.isDeletingAccount
+                                      ? 'Suppression...'
+                                      : 'Supprimer mon compte',
+                                  icon: Icons.delete_outline_rounded,
+                                  backgroundColor: const Color(0xFFFFEEEE),
+                                  foregroundColor: _dangerColor,
+                                  isLoading: homeController.isDeletingAccount,
+                                  onPressed: _confirmDeleteAccount,
                                 ),
                               ],
                             ),
-                          ],
+                          ),
                         ),
                       ),
-                    ),
-                    const SizedBox(height: 30),
-                  ],
-
-                  // Zone contenu principale
-                  Expanded(
-                    child: Container(
-                      width: double.infinity,
-                      padding: const EdgeInsets.all(16),
-                      decoration: BoxDecoration(
-                        border: Border.all(color: Colors.grey[300]!),
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Icon(
-                            Icons.check_circle,
-                            size: 64,
-                            color: Colors.green[400],
-                          ),
-                          const SizedBox(height: 16),
-                          const Text(
-                            'Connexion réussie ! 🎉',
-                            style: TextStyle(
-                              fontSize: 18,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                          const SizedBox(height: 8),
-                          Text(
-                            'Vous êtes maintenant connecté à votre compte',
-                            textAlign: TextAlign.center,
-                            style: TextStyle(
-                              fontSize: 14,
-                              color: Colors.grey[600],
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
+                    ],
                   ),
-                  const SizedBox(height: 30),
-
-                  // Bouton déconnexion (alternative, sur la page)
-                  SizedBox(
-                    width: double.infinity,
-                    child: ElevatedButton.icon(
-                      onPressed: _logout,
-                      icon: const Icon(Icons.logout),
-                      label: const Text('Se déconnecter'),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.red[400],
-                        padding: const EdgeInsets.symmetric(vertical: 14),
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
+          ),
+        ],
+      ),
     );
   }
 }

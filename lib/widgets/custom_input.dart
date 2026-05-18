@@ -38,7 +38,9 @@ class _CustomInputState extends State<CustomInput> {
       keyboardType: widget.keyboardType,
       decoration: InputDecoration(
         labelText: widget.label,
-        border: const OutlineInputBorder(),
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(10),
+        ),
 
         // ── Icône œil — visible SEULEMENT si c'est un champ mot de passe
         suffixIcon: widget.obscureText

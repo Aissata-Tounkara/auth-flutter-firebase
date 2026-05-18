@@ -58,6 +58,26 @@ class AuthService {
     }
   }
 
+  // Supprimer le compte connecté
+  Future<void> deleteAccount() async {
+    try {
+      final user = _auth.currentUser;
+
+      if (user == null) {
+        throw FirebaseAuthException(
+          code: 'no-current-user',
+          message: 'Aucun utilisateur connecté.',
+        );
+      }
+
+      final uid = user.uid;
+      await user.delete();
+      await _firestore.collection("users").doc(uid).delete();
+    } catch (e) {
+      rethrow;
+    }
+  }
+
   // Récupérer l'utilisateur actuel
   User? getCurrentUser() {
     return _auth.currentUser;

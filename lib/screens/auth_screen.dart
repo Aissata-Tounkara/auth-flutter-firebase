@@ -15,12 +15,12 @@ class _AuthScreenState extends State<AuthScreen> {
 
   final List<Map<String, String>> _content = [
     {
-      'title': 'Welcome Back',
-      'subtitle': 'Fill out the information below in order to\naccess your account.',
+    'title': 'Bon retour',
+    'subtitle': 'Remplissez les informations ci-dessous pour\naccéder à votre compte.',
     },
     {
-      'title': 'Create Account',
-      'subtitle': 'Create your account today and start\na wonderful journey.',
+    'title': 'Créer un compte',
+    'subtitle': 'Créez votre compte dès aujourd’hui et commencez\nune belle aventure.',
     },
   ];
 
@@ -30,32 +30,19 @@ class _AuthScreenState extends State<AuthScreen> {
       body: Stack(
         children: [
 
-          // ── Fond dégradé ──
-          Container(
-            decoration: const BoxDecoration(
-              gradient: LinearGradient(
-                colors: [Color(0xFF1A5C6B), Color(0xFF2A8A7A)],
-                begin: Alignment.topCenter,
-                end: Alignment.bottomCenter,
-              ),
-            ),
-          ),
+        Positioned.fill(
+        child: Image.asset(
+            'assets/images/background.png',
+            fit: BoxFit.cover,   // couvre tout l'écran
+        ),
+        ),
 
-          // ── Points décoratifs ──
-          const Positioned(top: 60,  left: 30,  child: _Star(size: 6)),
-          const Positioned(top: 100, right: 50, child: _Star(size: 4)),
-          const Positioned(top: 140, left: 80,  child: _Star(size: 3)),
-          const Positioned(top: 80,  right: 120,child: _Star(size: 5)),
-          const Positioned(top: 160, right: 30, child: _Star(size: 3)),
-
-          // ── Contenu principal ──
           SafeArea(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.center,
               children: [
                 const SizedBox(height: 20),
 
-                // ── Nom de l'app ──
                 const Text(
                   'My App ✦',
                   style: TextStyle(
@@ -145,20 +132,3 @@ class _AuthScreenState extends State<AuthScreen> {
   }
 }
 
-// ── Point étoile décoratif ──
-class _Star extends StatelessWidget {
-  final double size;
-  const _Star({required this.size});
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      width: size,
-      height: size,
-      decoration: const BoxDecoration(
-        color: Colors.white54,
-        shape: BoxShape.circle,
-      ),
-    );
-  }
-}
