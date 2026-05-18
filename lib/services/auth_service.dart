@@ -26,6 +26,7 @@ class AuthService {
           "firstName": firstName,
           "lastName": lastName,
           "email": email,
+          "emailLower": email.toLowerCase(),
           "createdAt": FieldValue.serverTimestamp(),
         });
       }
@@ -44,6 +45,32 @@ class AuthService {
         password: password,
       );
       return result.user;
+    } catch (e) {
+      rethrow;
+    }
+  }
+
+  // Vérifier si un email existe dans les profils utilisateurs Firestore
+  Future<bool> userEmailExists(String email) async {
+    try {
+      final normalizedEmail = email.toLowerCase();
+      final query = await _firestore
+          .collection("users")
+          .where("emailLower", isEqualTo: normalizedEmail)
+          .limit(1)
+          .get();
+
+      if (query.docs.isNotEmpty) {
+        return true;
+      }
+
+      final legacyQuery = await _firestore
+          .collection("users")
+          .where("email", isEqualTo: email)
+          .limit(1)
+          .get();
+
+      return legacyQuery.docs.isNotEmpty;
     } catch (e) {
       rethrow;
     }

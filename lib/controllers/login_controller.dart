@@ -30,14 +30,23 @@ class LoginController {
     }
 
     try {
+      final emailExists = await _authService.userEmailExists(email);
+
+      if (!emailExists) {
+        errors["email"] = "Aucun compte trouvé avec cet email";
+        return errors;
+      }
+
       await _authService.login(email: email, password: password);
 
       return {};
     } on FirebaseAuthException catch (e) {
       if (e.code == 'user-not-found') {
-        errors["email"] = "Utilisateur non trouvé";
-      } else if (e.code == 'wrong-password') {
+        errors["email"] = "Aucun compte trouvé avec cet email";
+      } else if (e.code == 'wrong-password' || e.code == 'invalid-credential') {
         errors["password"] = "Mot de passe incorrect";
+      } else if (e.code == 'invalid-email') {
+        errors["email"] = "Format email invalide";
       } else {
         errors["general"] = "Erreur de connexion : ${e.message}";
       }
